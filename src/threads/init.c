@@ -72,6 +72,79 @@ static void locate_block_device (enum block_type, const char *name);
 
 int pintos_init (void) NO_RETURN;
 
+static void
+    run_shell (void) 
+    {
+      char cmd[128];
+      
+      while (true) 
+        {
+          printf ("CS2042> ");
+          size_t i = 0;
+      while (i < sizeof (cmd) - 1) 
+        {
+          char c = input_getc ();
+          
+          if (c == '\r' || c == '\n') 
+            {
+              printf ("\n");
+              break;
+            }
+          else if (c == '\b' || c == 127) 
+            {
+              if (i > 0) 
+                {
+                  i--;
+                  printf ("\b \b");
+                }
+            }
+          else if (c >= ' ' && c <= '~') 
+            {
+              cmd[i++] = c;
+              printf ("%c", c);
+            }
+        }
+      cmd[i] = '\0';
+
+      if (cmd[0] == '\0')
+        continue;
+
+      if (!strcmp (cmd, "whoami")) 
+        {
+          printf ("Nethmie Dissanayake - 240142C\n");
+        }
+      else if (!strcmp (cmd, "shutdown")) 
+        {
+          shutdown_power_off ();
+        }
+      else if (!strcmp (cmd, "time")) 
+        {
+          printf ("%"PRId64" s\n", rtc_get_time ());
+        }
+      else if (!strcmp (cmd, "ram")) 
+        {
+          printf ("%"PRIu32" kB\n", init_ram_pages * PGSIZE / 1024);
+        }
+      else if (!strcmp (cmd, "thread")) 
+        {
+          thread_print_stats ();
+        }
+      else if (!strcmp (cmd, "priority")) 
+        {
+          printf ("%d\n", thread_get_priority ());
+        }
+      else if (!strcmp (cmd, "exit")) 
+        {
+          printf ("Exiting Interactive shell...Bye!\n");
+          break;
+        }
+      else 
+        {
+          printf ("Unknown command: %s\n", cmd);
+        }
+    }
+}
+
 /* Pintos main entry point. */
 int
 pintos_init (void)
@@ -133,7 +206,8 @@ pintos_init (void)
     /* Run actions specified on kernel command line. */
     run_actions (argv);
   } else {
-    // TODO: no command line passed to kernel. Run interactively 
+    // Run interactively 
+    run_shell ();
   }
 
   /* Finish up. */

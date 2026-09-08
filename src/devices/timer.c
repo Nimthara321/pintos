@@ -20,6 +20,8 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+static struct list sleep_list;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -37,6 +39,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(&sleep_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -84,16 +87,45 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
+static bool
+wakeup_less (const struct list_elem *a,
+             const struct list_elem *b,
+             void *aux UNUSED)
+{
+    struct thread *t1 =
+        list_entry (a, struct thread, elem);
+
+    struct thread *t2 =
+        list_entry (b, struct thread, elem);
+
+    return t1->wakeup_tick < t2->wakeup_tick;
+}
+
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
-timer_sleep (int64_t ticks) 
+timer_sleep (int64_t ticks)
 {
-  int64_t start = timer_ticks ();
+    struct thread *cur = thread_current ();
+    enum intr_level old_level;
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+    if (ticks <= 0)
+        return;
+
+    ASSERT (intr_get_level () == INTR_ON);
+
+    old_level = intr_disable ();
+
+    cur->wakeup_tick = timer_ticks () + ticks;
+
+    list_insert_ordered (&sleep_list,
+                         &cur->elem,
+                         wakeup_less,
+                         NULL);
+
+    thread_block ();
+
+    intr_set_level (old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -170,8 +202,25 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-  ticks++;
-  thread_tick ();
+    ticks++;
+
+    while (!list_empty (&sleep_list))
+    {
+        struct thread *t =
+            list_entry (list_front (&sleep_list),
+                        struct thread,
+                        elem);
+
+        if (t->wakeup_tick <= ticks)
+        {
+            list_pop_front (&sleep_list);
+            thread_unblock (t);
+        }
+        else
+            break;
+    }
+
+    thread_tick ();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -227,7 +276,7 @@ real_time_sleep (int64_t num, int32_t denom)
          processes. */                
       timer_sleep (ticks); 
     }
-  else 
+  else  
     {
       /* Otherwise, use a busy-wait loop for more accurate
          sub-tick timing. */

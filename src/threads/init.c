@@ -119,7 +119,8 @@ static void
         }
       else if (!strcmp (cmd, "time")) 
         {
-          printf ("%"PRId64" s\n", rtc_get_time ());
+          unsigned long total_seconds = (unsigned long) rtc_get_time ();
+          printf ("%lu s UTC\n" ,total_seconds);
         }
       else if (!strcmp (cmd, "ram")) 
         {

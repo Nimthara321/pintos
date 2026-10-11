@@ -92,6 +92,8 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
+    int exit_status;       /*Process exit status code.*/
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -136,6 +138,7 @@ void thread_unblock (struct thread *);
 struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
+struct thread *thread_get_by_tid(tid_t tid);
 
 bool thread_priority_comparator(const struct list_elem *a,const struct list_elem *b,void *aux);
 void thread_test_preemption (void);

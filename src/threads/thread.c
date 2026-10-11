@@ -371,6 +371,28 @@ thread_tid (void)
   return thread_current ()->tid;
 }
 
+/*Returns thread with given TID or NULL if not found.*/
+struct thread *
+thread_get_by_tid(tid_t tid)
+{
+  enum intr_level old_level=intr_disable();
+  struct list_elem *e;
+  struct thread *target=NULL;
+
+  for(e=list_begin(&all_list); e !=list_end(&all_list);
+       e=list_next(e))
+    {
+      struct thread *t=list_entry(e, struct thread, allelem);
+      if(t->tid==tid)
+        {
+          target=t;
+          break;
+        }
+    }
+  intr_set_level(old_level);
+  return target;
+}
+
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
@@ -614,6 +636,10 @@ static void
 init_thread (struct thread *t, const char *name, int priority)
 {
   enum intr_level old_level;
+
+  t->priority=priority;
+  t->magic= THREAD_MAGIC;
+  t->exit_status=0;       /*Initialization for exit_status*/
 
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);

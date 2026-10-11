@@ -468,10 +468,24 @@ setup_stack (void **esp, char *cmdline)
           char *token=strtok_r(cmdline, " ", &save_ptr);
           while(token !=NULL)
             {
+              if(argc>=(int)(PGSIZE/sizeof(char *))-1)
+                {
+                  palloc_free_page(argv);
+                  return false;
+                }
               argv[argc++]= token;
               token=strtok_r(NULL, " ", &save_ptr);
             }
-
+          size_t total_size=0;
+          for(i=0; i<argc; i++)
+            total_size+=strlen(argv[i]) +1;
+          total_size=ROUND_UP(total_size, sizeof (size_t));
+          total_size+=(argc+1) * sizeof(char *) + sizeof(char **) +sizeof(int) + sizeof(void *);
+          if(total_size>PGSIZE)
+            {
+              palloc_free_page(argv);
+              return false;
+            }
           *esp = PHYS_BASE;
           for(i=argc-1; i>=0; i--)
             {
